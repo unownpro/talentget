@@ -31,4 +31,3 @@ document.getElementById('editor').addEventListener('keydown', function(e) {
         });
     }
 }, true);
-

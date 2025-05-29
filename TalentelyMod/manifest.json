@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "Talent Website Utility",
+  "name": "Drive",
   "version": "1.0",
-  "description": "Enhances browsing with an embedded ChatGPT panel.",
+  "description": "A Chrome extension that upload file to Google Drive",
   "icons": {
     "16": "icons/16.png",
     "48": "icons/48.png",
     "128": "icons/128.png"
   },
-  "permissions": ["scripting", "activeTab", "storage"],
+  "permissions": ["scripting", "activeTab", "storage", "tabs"],
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*"
   ],

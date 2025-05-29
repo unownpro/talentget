@@ -4,87 +4,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusDiv = document.getElementById('status');
     const modelPreview = document.getElementById('modelPreview');
 
-    // Model information database
+    // Model information database - Only text generation models
     const modelInfo = {
-        'gemini-2.5-flash-preview-05-20': {
-            name: 'Gemini 2.5 Flash Preview',
-            description: 'Latest model with adaptive thinking capabilities and cost efficiency. Supports audio, images, videos, and text inputs.',
-            optimized: 'Adaptive thinking, cost efficiency'
-        },
-        'gemini-2.5-flash-preview-native-audio-dialog': {
-            name: 'Gemini 2.5 Flash Native Audio Dialog',
-            description: 'Advanced conversational AI with natural audio processing capabilities.',
-            optimized: 'High quality, natural conversational audio outputs'
-        },
-        'gemini-2.5-flash-exp-native-audio-thinking-dialog': {
-            name: 'Gemini 2.5 Flash Native Audio Thinking',
-            description: 'Enhanced audio model with advanced thinking capabilities for complex conversations.',
-            optimized: 'Natural conversational audio with thinking'
-        },
-        'gemini-2.5-flash-preview-tts': {
-            name: 'Gemini 2.5 Flash TTS',
-            description: 'Advanced text-to-speech generation with low latency and controllable output.',
-            optimized: 'Low latency text-to-speech audio generation'
-        },
-        'gemini-2.5-pro-preview-05-06': {
-            name: 'Gemini 2.5 Pro Preview',
-            description: 'Most advanced reasoning model with enhanced thinking, multimodal understanding, and advanced coding capabilities.',
-            optimized: 'Enhanced thinking, reasoning, multimodal understanding'
-        },
-        'gemini-2.5-pro-preview-tts': {
-            name: 'Gemini 2.5 Pro TTS',
-            description: 'Professional-grade text-to-speech with multi-speaker capabilities.',
-            optimized: 'Professional text-to-speech generation'
-        },
-        'gemini-2.0-flash': {
-            name: 'Gemini 2.0 Flash',
-            description: 'Next generation model with cutting-edge features, enhanced speed, and realtime streaming capabilities.',
-            optimized: 'Next generation features, speed, thinking'
-        },
-        'gemini-2.0-flash-preview-image-generation': {
-            name: 'Gemini 2.0 Flash Image Generation',
-            description: 'Specialized model for conversational image generation and editing tasks.',
-            optimized: 'Conversational image generation and editing'
-        },
-        'gemini-2.0-flash-lite': {
-            name: 'Gemini 2.0 Flash-Lite',
-            description: 'Optimized for cost efficiency and low latency while maintaining good performance.',
-            optimized: 'Cost efficiency and low latency'
-        },
-        'gemini-2.0-flash-live-001': {
-            name: 'Gemini 2.0 Flash Live',
-            description: 'Real-time bidirectional voice and video interactions with low latency.',
-            optimized: 'Low-latency voice and video interactions'
-        },
         'gemini-1.5-flash': {
             name: 'Gemini 1.5 Flash',
-            description: 'Fast and versatile performance across diverse tasks. Excellent balance of speed and capability.',
-            optimized: 'Fast and versatile performance'
+            description: 'Fast and versatile performance across diverse tasks. Excellent balance of speed and capability for text generation.',
+            optimized: 'Fast text generation, coding assistance, general questions'
         },
         'gemini-1.5-flash-8b': {
             name: 'Gemini 1.5 Flash-8B',
-            description: 'Optimized for high volume processing and lower intelligence tasks with good efficiency.',
-            optimized: 'High volume and lower intelligence tasks'
+            description: 'Optimized for high volume text processing and simpler tasks with good efficiency.',
+            optimized: 'High volume text processing, simple questions'
         },
         'gemini-1.5-pro': {
             name: 'Gemini 1.5 Pro',
-            description: 'Advanced model for complex reasoning tasks requiring higher intelligence and deeper analysis.',
-            optimized: 'Complex reasoning tasks requiring more intelligence'
+            description: 'Advanced model for complex reasoning tasks requiring higher intelligence and deeper text analysis.',
+            optimized: 'Complex reasoning, detailed analysis, advanced coding'
         },
-        'gemini-embedding-exp': {
-            name: 'Gemini Embedding',
-            description: 'Specialized model for measuring relatedness of text strings and creating embeddings.',
-            optimized: 'Measuring relatedness of text strings'
+        'gemini-2.0-flash': {
+            name: 'Gemini 2.0 Flash',
+            description: 'Latest generation model with enhanced speed and improved text generation capabilities.',
+            optimized: 'Enhanced text generation, improved reasoning, latest features'
         },
-        'imagen-3.0-generate-002': {
-            name: 'Imagen 3',
-            description: 'Advanced image generation model capable of creating high-quality, detailed images from text prompts.',
-            optimized: 'Advanced image generation'
+        'gemini-2.5-flash-preview-05-20': {
+            name: 'Gemini 2.5 Flash Preview',
+            description: 'Latest model with adaptive thinking capabilities and cost efficiency. Supports text generation with enhanced performance.',
+            optimized: 'Adaptive thinking, cost efficiency, advanced text generation'
         },
-        'veo-2.0-generate-001': {
-            name: 'Veo 2',
-            description: 'High-quality video generation model that can create videos from text and image inputs.',
-            optimized: 'High quality video generation'
+        'gemini-2.5-pro-preview-05-06': {
+            name: 'Gemini 2.5 Pro Preview',
+            description: 'Most advanced reasoning model with enhanced thinking, multimodal understanding, and advanced text generation capabilities.',
+            optimized: 'Enhanced thinking, reasoning, complex text analysis'
         }
     };
 
@@ -157,12 +107,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Notify content scripts about model change
                 chrome.tabs.query({}, (tabs) => {
                     tabs.forEach(tab => {
-                        chrome.tabs.sendMessage(tab.id, { 
-                            action: "modelUpdated", 
-                            model: selectedModel 
-                        }).catch(() => {
-                            // Ignore errors for tabs that don't have content script
-                        });
+                        if (tab.id) {
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: "modelUpdated",
+                                model: selectedModel
+                            }, (response) => {
+                                if (chrome.runtime.lastError) {
+                                    // Silently ignore errors for tabs without content script
+                                    console.log(`Content script not available on tab ${tab.id}`);
+                                } else {
+                                    console.log(`Model update sent to tab ${tab.id}:`, response);
+                                }
+                            });
+                        }
                     });
                 });
             }

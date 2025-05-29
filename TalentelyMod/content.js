@@ -3,15 +3,24 @@ let scriptInjected = false;
 
 // Function to inject the paste script (existing functionality)
 function injectPasteScript() {
+  console.log("injectPasteScript called, scriptInjected:", scriptInjected); // Added diagnostic logging
+  
   if (scriptInjected) {
+    console.log("Script already injected, sending reinitialize message"); // Added diagnostic logging
     window.postMessage({ type: "REINITIALIZE_PASTE_SCRIPT" }, "*");
     return;
   }
+  
+  console.log("Injecting new paste script"); // Added diagnostic logging
   const script = document.createElement('script');
   script.src = chrome.runtime.getURL('injected.js');
   script.onload = function() {
     scriptInjected = true;
+    console.log("Paste script injected successfully"); // Added diagnostic logging
     this.remove();
+  };
+  script.onerror = function() {
+    console.error("Failed to load injected.js"); // Added error logging
   };
   (document.head || document.documentElement).appendChild(script);
 }
@@ -120,24 +129,14 @@ Remember: Speed and directness are key. Provide accurate, complete answers in th
   }]
 };
 
-// Simplified model database
+// Simplified model database - only text generation models
 const modelDatabase = {
-  'gemini-2.5-flash-preview-05-20': { name: 'Gemini 2.5 Flash Preview', emoji: '🚀' },
-  'gemini-2.5-flash-preview-native-audio-dialog': { name: 'Gemini 2.5 Audio Dialog', emoji: '🎤' },
-  'gemini-2.5-flash-exp-native-audio-thinking-dialog': { name: 'Gemini 2.5 Audio Thinking', emoji: '🧠' },
-  'gemini-2.5-flash-preview-tts': { name: 'Gemini 2.5 Flash TTS', emoji: '🔊' },
-  'gemini-2.5-pro-preview-05-06': { name: 'Gemini 2.5 Pro Preview', emoji: '🏆' },
-  'gemini-2.5-pro-preview-tts': { name: 'Gemini 2.5 Pro TTS', emoji: '🎵' },
-  'gemini-2.0-flash': { name: 'Gemini 2.0 Flash', emoji: '⭐' },
-  'gemini-2.0-flash-preview-image-generation': { name: 'Gemini 2.0 Image Gen', emoji: '🎨' },
-  'gemini-2.0-flash-lite': { name: 'Gemini 2.0 Flash-Lite', emoji: '💨' },
-  'gemini-2.0-flash-live-001': { name: 'Gemini 2.0 Live', emoji: '🎥' },
   'gemini-1.5-flash': { name: 'Gemini 1.5 Flash', emoji: '✨' },
   'gemini-1.5-flash-8b': { name: 'Gemini 1.5 Flash-8B', emoji: '📊' },
   'gemini-1.5-pro': { name: 'Gemini 1.5 Pro', emoji: '💎' },
-  'gemini-embedding-exp': { name: 'Gemini Embedding', emoji: '🔗' },
-  'imagen-3.0-generate-002': { name: 'Imagen 3', emoji: '🖼️' },
-  'veo-2.0-generate-001': { name: 'Veo 2', emoji: '🎬' }
+  'gemini-2.0-flash': { name: 'Gemini 2.0 Flash', emoji: '⭐' },
+  'gemini-2.5-flash-preview-05-20': { name: 'Gemini 2.5 Flash Preview', emoji: '🚀' },
+  'gemini-2.5-pro-preview-05-06': { name: 'Gemini 2.5 Pro Preview', emoji: '🏆' }
 };
 
 // Simple markdown to HTML converter
@@ -575,6 +574,26 @@ function createGeminiPanel() {
     }
   });
 
+  // Prevent the panel from interfering with page keyboard shortcuts
+  geminiPanel.addEventListener('keydown', (e) => {
+    // Allow Ctrl+Shift+Y to pass through to the page for paste functionality
+    if (e.ctrlKey && e.shiftKey && e.key === 'Y') {
+      e.stopPropagation(); // Don't let panel handle this
+      return; // Let it bubble to the page
+    }
+    
+    // Allow Ctrl+Shift+H to pass through for panel toggle
+    if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+      e.stopPropagation();
+      return;
+    }
+    
+    // For other events within the panel, prevent them from affecting the page
+    if (e.target.closest('#gemini-talent-utility-panel')) {
+      e.stopPropagation();
+    }
+  });
+
   // Load model selection and initialize
   loadModelSelection();
 }
@@ -742,30 +761,13 @@ async function handleSendPrompt(isBackground = false) {
 
   if (!promptText) return;
 
-  // Check cache first for identical queries
-  const cacheKey = generateCacheKey(promptText, conversationHistory);
-  const cachedResponse = getCachedResponse(cacheKey);
-  
-  if (cachedResponse) {
-    console.log('Using cached response for:', promptText.substring(0, 50));
-    addMessageToConversation('You', promptText, 'user');
-    conversationHistory.push({ role: "user", parts: [{ text: promptText }] });
-    addMessageToConversation('AI', cachedResponse, 'model');
-    conversationHistory.push({ role: "model", parts: [{ text: cachedResponse }] });
-    
-    if (!isBackground) {
-      promptInput.value = '';
-      promptInput.style.height = 'auto';
-      promptInput.focus();
-    }
-    return;
-  }
+  console.log('Sending prompt:', promptText.substring(0, 50) + '...');
 
-  // Add user message
+  // Add user message first
   addMessageToConversation('You', promptText, 'user');
   conversationHistory.push({ role: "user", parts: [{ text: promptText }] });
-  
-  // Clear input and disable controls only if not background
+
+  // Clear input immediately after adding message to conversation
   if (!isBackground) {
     promptInput.value = '';
     promptInput.style.height = 'auto';
@@ -777,10 +779,51 @@ async function handleSendPrompt(isBackground = false) {
     showTypingIndicator();
   }
 
+  // Check cache after UI updates
+  const cacheKey = generateCacheKey(promptText, conversationHistory.slice(0, -1)); // Exclude current message for cache key
+  const cachedResponse = getCachedResponse(cacheKey);
+  
+  if (cachedResponse) {
+    console.log('Using cached response for:', promptText.substring(0, 50));
+    if (!isBackground) {
+      removeTypingIndicator();
+    }
+    addMessageToConversation('AI', cachedResponse, 'model');
+    conversationHistory.push({ role: "model", parts: [{ text: cachedResponse }] });
+    
+    if (!isBackground) {
+      promptInput.disabled = false;
+      sendButton.disabled = false;
+      sendButton.innerHTML = '→';
+      promptInput.focus();
+    }
+    return;
+  }
+
   try {
-    // Optimized API call with reduced timeout for faster responses
+    console.log('Making API request to Gemini...');
+    
+    // Optimized API call with better error handling
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    const requestBody = {
+      contents: conversationHistory,
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 2048,
+      },
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
+      ]
+    };
+
+    console.log('Request body prepared, making fetch request...');
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${EMBEDDED_API_KEY}`, {
       method: 'POST',
@@ -788,50 +831,67 @@ async function handleSendPrompt(isBackground = false) {
         'Content-Type': 'application/json',
       },
       signal: controller.signal,
-      body: JSON.stringify({
-        contents: conversationHistory,
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
-        ]
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     clearTimeout(timeoutId);
+    console.log('Response received, status:', response.status);
     
     if (!isBackground) {
       removeTypingIndicator();
     }
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Gemini API Error:', errorData);
-      addMessageToConversation('Error', `API Error: ${errorData.error?.message || response.statusText}`, 'system');
-      conversationHistory.pop();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error?.message || errorMessage;
+        console.error('Gemini API Error Details:', errorData);
+      } catch (parseError) {
+        console.error('Failed to parse error response:', parseError);
+      }
+      
+      console.error('Gemini API Error:', errorMessage);
+      addMessageToConversation('Error', `API Error: ${errorMessage}`, 'system');
+      conversationHistory.pop(); // Remove the user message that failed
       return;
     }
 
     const data = await response.json();
+    console.log('Response data received:', data);
     
-    if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts.length > 0) {
-      const modelResponse = data.candidates[0].content.parts[0].text;
-      addMessageToConversation('AI', modelResponse, 'model');
-      conversationHistory.push({ role: "model", parts: [{ text: modelResponse }] });
+    // Better response validation
+    if (data && data.candidates && Array.isArray(data.candidates) && data.candidates.length > 0) {
+      const candidate = data.candidates[0];
       
-      // Cache the response for future use
-      setCachedResponse(cacheKey, modelResponse);
+      if (candidate.content && candidate.content.parts && Array.isArray(candidate.content.parts) && candidate.content.parts.length > 0) {
+        const modelResponse = candidate.content.parts[0].text;
+        
+        if (modelResponse && modelResponse.trim()) {
+          console.log('Valid response received, length:', modelResponse.length);
+          addMessageToConversation('AI', modelResponse, 'model');
+          conversationHistory.push({ role: "model", parts: [{ text: modelResponse }] });
+          
+          // Cache the response for future use
+          setCachedResponse(cacheKey, modelResponse);
+        } else {
+          console.warn('Empty response text received');
+          addMessageToConversation('System', 'Received empty response from AI. Please try again.', 'system');
+          conversationHistory.pop(); // Remove the user message
+        }
+      } else {
+        console.warn('Invalid response structure - no content parts');
+        addMessageToConversation('System', 'Received invalid response structure from AI. Please try again.', 'system');
+        conversationHistory.pop(); // Remove the user message
+      }
     } else if (data.promptFeedback && data.promptFeedback.blockReason) {
-      addMessageToConversation('System', `Response blocked: ${data.promptFeedback.blockReason}`, 'system');
+      console.warn('Response blocked:', data.promptFeedback.blockReason);
+      addMessageToConversation('System', `Response blocked: ${data.promptFeedback.blockReason}. Try rephrasing your question.`, 'system');
+      conversationHistory.pop(); // Remove the user message
     } else {
-      addMessageToConversation('System', 'Received an empty or unexpected response', 'system');
+      console.error('Unexpected response format:', data);
+      addMessageToConversation('System', 'Received unexpected response format. Please try again.', 'system');
+      conversationHistory.pop(); // Remove the user message
     }
 
   } catch (error) {
@@ -839,12 +899,16 @@ async function handleSendPrompt(isBackground = false) {
       removeTypingIndicator();
     }
     console.error('Error calling Gemini API:', error);
+    
+    let errorMessage = 'Unknown error occurred';
     if (error.name === 'AbortError') {
-      addMessageToConversation('System', 'Request timed out. Please try again.', 'system');
-    } else {
-      addMessageToConversation('System', `Network Error: ${error.message}`, 'system');
+      errorMessage = 'Request timed out. Please try again.';
+    } else if (error.message) {
+      errorMessage = error.message;
     }
-    conversationHistory.pop();
+    
+    addMessageToConversation('System', `Network Error: ${errorMessage}`, 'system');
+    conversationHistory.pop(); // Remove the user message that failed
   } finally {
     // Re-enable controls only if not background
     if (!isBackground) {
@@ -865,9 +929,20 @@ function toggleGeminiPanel() {
   geminiPanel.style.display = geminiPanelVisible ? 'flex' : 'none';
   
   if (geminiPanelVisible) {
+    // Reinitialize paste script when panel is opened to ensure it's still working
+    setTimeout(() => {
+      window.postMessage({ type: "REINITIALIZE_PASTE_SCRIPT" }, "*");
+    }, 100);
+    
     document.getElementById('gemini-prompt-input')?.focus();
     // Refresh model selection
     loadModelSelection();
+  } else {
+    // When panel is closed, ensure focus returns to the page and reinitialize paste script
+    setTimeout(() => {
+      document.body.focus();
+      window.postMessage({ type: "REINITIALIZE_PASTE_SCRIPT" }, "*");
+    }, 100);
   }
   
   console.log(`Gemini panel toggled: ${geminiPanelVisible ? 'visible' : 'hidden'}`);
@@ -904,9 +979,29 @@ async function processBackgroundQueue() {
 
 // Enhanced keyboard shortcut handling for background requests
 document.addEventListener('keydown', (e) => {
-  // Ctrl+Shift+H for background AI request
+  // Don't handle shortcuts if they're coming from within the Gemini panel
+  if (e.target.closest('#gemini-talent-utility-panel')) {
+    return;
+  }
+  
+  // Ctrl+Shift+Y for paste script (fallback if command API fails)
+  if (e.ctrlKey && e.shiftKey && e.key === 'Y') {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Ctrl+Shift+Y detected directly in content script (fallback)");
+    injectPasteScript();
+    
+    // Also reinitialize after a short delay to ensure it's working
+    setTimeout(() => {
+      window.postMessage({ type: "REINITIALIZE_PASTE_SCRIPT" }, "*");
+    }, 100);
+    return;
+  }
+  
+  // Ctrl+Shift+H for Gemini panel toggle and background AI request
   if (e.ctrlKey && e.shiftKey && e.key === 'H') {
     e.preventDefault();
+    e.stopPropagation();
     
     // Try to get selected text or focused input value
     let selectedText = window.getSelection().toString().trim();
@@ -919,6 +1014,7 @@ document.addEventListener('keydown', (e) => {
       }
     }
     
+    // If there's selected text, process it as a background request
     if (selectedText) {
       console.log('Background AI request triggered for:', selectedText.substring(0, 50));
       
@@ -936,14 +1032,26 @@ document.addEventListener('keydown', (e) => {
         toggleGeminiPanel();
       }
     } else {
-      console.log('No text selected for background AI request');
+      // If no text selected, just toggle the panel
+      console.log('No text selected, toggling Gemini panel');
+      toggleGeminiPanel();
     }
+    
+    // Ensure paste script is still working after panel interaction
+    setTimeout(() => {
+      window.postMessage({ type: "REINITIALIZE_PASTE_SCRIPT" }, "*");
+    }, 200);
+    
+    return;
   }
-});
+}, true); // Use capture phase for better event handling
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("Content script received message:", message); // Added diagnostic logging
+  
   if (message.action === "runPasteScript") {
+    console.log("Running paste script from background command"); // Added diagnostic logging
     injectPasteScript();
     sendResponse({ status: "Script executed" });
   } else if (message.action === "getStatus") {

@@ -183,35 +183,23 @@
         </div>
         
         <div class="info-card">
-            <strong>API Status:</strong> Configured and ready to use
+            <strong>API Status:</strong> Configured and ready for text generation
         </div>
         
         <div class="form-group">
-            <label for="modelSelect">Select AI Model:</label>
+            <label for="modelSelect">Select AI Model (Text Generation Only):</label>
             <select id="modelSelect" name="modelSelect">
-                <optgroup label="Gemini 2.5 Series (Latest)">
-                    <option value="gemini-2.5-flash-preview-05-20">🚀 Gemini 2.5 Flash Preview - Adaptive thinking</option>
-                    <option value="gemini-2.5-flash-preview-native-audio-dialog">🎤 Gemini 2.5 Flash Native Audio Dialog</option>
-                    <option value="gemini-2.5-flash-exp-native-audio-thinking-dialog">🧠 Gemini 2.5 Flash Native Audio Thinking</option>
-                    <option value="gemini-2.5-flash-preview-tts">🔊 Gemini 2.5 Flash TTS</option>
-                    <option value="gemini-2.5-pro-preview-05-06">🏆 Gemini 2.5 Pro Preview - Enhanced reasoning</option>
-                    <option value="gemini-2.5-pro-preview-tts">🎵 Gemini 2.5 Pro TTS</option>
+                <optgroup label="Latest Models (Recommended)">
+                    <option value="gemini-2.5-flash-preview-05-20">🚀 Gemini 2.5 Flash Preview - Latest with adaptive thinking</option>
+                    <option value="gemini-2.5-pro-preview-05-06">🏆 Gemini 2.5 Pro Preview - Most advanced reasoning</option>
                 </optgroup>
-                <optgroup label="Gemini 2.0 Series">
-                    <option value="gemini-2.0-flash">⭐ Gemini 2.0 Flash - Next generation</option>
-                    <option value="gemini-2.0-flash-preview-image-generation">🎨 Gemini 2.0 Flash Image Generation</option>
-                    <option value="gemini-2.0-flash-lite">💨 Gemini 2.0 Flash-Lite</option>
-                    <option value="gemini-2.0-flash-live-001">🎥 Gemini 2.0 Flash Live</option>
+                <optgroup label="Stable Models">
+                    <option value="gemini-1.5-flash" selected>✨ Gemini 1.5 Flash - Fast & versatile text generation</option>
+                    <option value="gemini-2.0-flash">⭐ Gemini 2.0 Flash - Enhanced generation with latest features</option>
                 </optgroup>
-                <optgroup label="Gemini 1.5 Series (Recommended)">
-                    <option value="gemini-1.5-flash" selected>✨ Gemini 1.5 Flash - Fast & versatile</option>
-                    <option value="gemini-1.5-flash-8b">📊 Gemini 1.5 Flash-8B</option>
-                    <option value="gemini-1.5-pro">💎 Gemini 1.5 Pro - Complex reasoning</option>
-                </optgroup>
-                <optgroup label="Specialized Models">
-                    <option value="gemini-embedding-exp">🔗 Gemini Embedding</option>
-                    <option value="imagen-3.0-generate-002">🖼️ Imagen 3 - Image generation</option>
-                    <option value="veo-2.0-generate-001">🎬 Veo 2 - Video generation</option>
+                <optgroup label="Specialized Options">
+                    <option value="gemini-1.5-flash-8b">📊 Gemini 1.5 Flash-8B - High volume processing</option>
+                    <option value="gemini-1.5-pro">💎 Gemini 1.5 Pro - Complex reasoning and analysis</option>
                 </optgroup>
             </select>
             
